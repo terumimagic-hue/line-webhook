@@ -13,26 +13,23 @@ export default async function handler(req, res) {
 
     const prompt = `
 あなたは日本の家庭向け献立コンシェルジュです。
-ユーザーの入力から、今日の夕飯を実用的に提案してください。
 
-【ユーザー入力】
+【入力】
 ${userMessage}
 
-【ルール】
-- 日本のスーパーで手に入りやすい食材を前提にする
-- 時短・節約・家族ウケを優先
-- 難しい工程にしない
-- 出力は短く、LINEで読みやすくする
-- 必ず以下の形式で返す
+【条件】
+・時短
+・節約
+・簡単
 
-【出力形式】
+【形式】
 主菜：
 副菜：
 汁物：
 理由：
 `;
 
-    let replyText = "うまく生成できませんでした";
+    let replyText = "生成できませんでした";
 
     try {
       const aiRes = await fetch("https://api.openai.com/v1/responses", {
@@ -44,21 +41,20 @@ ${userMessage}
         body: JSON.stringify({
           model: "gpt-5-mini",
           input: prompt,
-          max_output_tokens: 300
         }),
       });
 
-      const aiData = await aiRes.json();
+      const data = await aiRes.json();
 
-      if (!aiRes.ok) {
-        replyText = `OpenAIエラー: ${aiData?.error?.message || "不明なエラー"}`;
+      // 🔥ここが最重要修正
+      if (data.output_text) {
+        replyText = data.output_text;
       } else {
-        replyText =
-          aiData.output_text?.trim() ||
-          "献立の生成に失敗しました。もう一度試してください。";
+        replyText = JSON.stringify(data); // デバッグ
       }
+
     } catch (e) {
-      replyText = `接続エラー: ${e.message}`;
+      replyText = "エラー: " + e.message;
     }
 
     await fetch("https://api.line.me/v2/bot/message/reply", {
