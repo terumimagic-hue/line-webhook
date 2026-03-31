@@ -10,7 +10,49 @@ export default async function handler(req, res) {
       const replyToken = event.replyToken;
       const userMessage = event.message.text;
 
-      const replyText = `受け取りました：${userMessage}`;
+      const prompt = `
+あなたはプロの料理人です。
+ユーザーの入力から、家庭向けの献立を提案してください。
+
+【入力】
+${userMessage}
+
+【条件】
+・時短・節約・家族向け
+・スーパーで買える食材
+・簡単に作れる
+
+【形式】
+主菜：
+副菜：
+汁物：
+理由：
+`;
+
+      let replyText = "少し時間をおいてもう一度送ってください";
+
+      try {
+        const aiRes = await fetch("https://api.openai.com/v1/responses", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + process.env.OPENAI_API_KEY,
+          },
+          body: JSON.stringify({
+            model: "gpt-5-mini",
+            input: prompt,
+            max_output_tokens: 300
+          }),
+        });
+
+        const data = await aiRes.json();
+
+        replyText =
+          data.output?.[0]?.content?.[0]?.text ||
+          "うまく生成できませんでした";
+      } catch (e) {
+        replyText = "エラーが発生しました";
+      }
 
       await fetch("https://api.line.me/v2/bot/message/reply", {
         method: "POST",
@@ -23,7 +65,7 @@ export default async function handler(req, res) {
           messages: [
             {
               type: "text",
-              text: replyText,
+              text: replyText.slice(0, 1000),
             },
           ],
         }),
