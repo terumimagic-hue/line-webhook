@@ -13,38 +13,31 @@ export default async function handler(req, res) {
     const replyToken = event.replyToken;
     const userMessage = event.message.text;
 
-    const prompt = `
-あなたは「思考ゼロ献立」というサービスのAIです。
+    let replyText = "";
 
-目的：
-忙しい人が“考えずに”夕飯を決められること。
+    try {
+      const prompt = `
+あなたは「思考ゼロ献立」のAIです。
+忙しい人が、考えずにすぐ夕飯を決められるようにしてください。
 
-ユーザー入力：
+【ユーザー入力】
 ${userMessage}
 
-ルール：
-・とにかく短く
-・スマホで一瞬で読める
-・説明は最小限
-・余計な文章は禁止
-・改行を使う
+【ルール】
 ・日本の家庭向け
+・短く、見やすく
 ・時短、節約、簡単を優先
-・スーパーで買える材料前提
-・料理名はわかりやすく
+・スーパーで買える食材だけ
+・スマホで一瞬で読める文章にする
+・説明は必要最小限
 
-出力フォーマット：
-
+【出力形式】
 🍳主菜：
 🥗副菜：
 🍲汁物：
-
 💡理由：
 `;
 
-    let replyText = "うまく生成できませんでした。もう一度送ってください。";
-
-    try {
       const aiRes = await fetch("https://api.openai.com/v1/responses", {
         method: "POST",
         headers: {
@@ -54,36 +47,39 @@ ${userMessage}
         body: JSON.stringify({
           model: "gpt-5-mini",
           input: prompt,
-          max_output_tokens: 220,
+          max_output_tokens: 250,
         }),
       });
 
       const data = await aiRes.json();
 
       if (!aiRes.ok) {
-        replyText = `OpenAIエラー: ${data?.error?.message || "不明なエラー"}`;
+        replyText =
+          "🍳主菜：鶏もも照り焼き\n🥗副菜：もやしナムル\n🍲汁物：豆腐の味噌汁\n💡理由：すぐ作れて失敗しにくい定番です。";
       } else {
         replyText =
           data.output_text ||
-          data.output
-            ?.find((item) => item.type === "message")
-            ?.content?.find((content) => content.type === "output_text")
-            ?.text ||
-          "献立の生成に失敗しました。";
+          data.output?.find((o) => o.type === "message")?.content?.find((c) => c.type === "output_text")?.text ||
+          "";
       }
-    } catch (e) {
-      replyText = `接続エラー: ${e.message}`;
+
+      if (!replyText || replyText.trim().length < 5) {
+        replyText =
+          "🍳主菜：鶏もも照り焼き\n🥗副菜：もやしナムル\n🍲汁物：豆腐の味噌汁\n💡理由：早い・安い・簡単で平日に使いやすいです。";
+      }
+    } catch (error) {
+      replyText =
+        "🍳主菜：鶏もも照り焼き\n🥗副菜：もやしナムル\n🍲汁物：豆腐の味噌汁\n💡理由：通信が不安定なため、安定メニューを返しました。";
     }
 
     await fetch("https://api.line.me/v2/bot/message/reply", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization:
-          "Bearer dz3XnwGO6z1w+clFLB1A0LMM2vJtdRJQX2t72VhlOzo990gpxK7ru+zfWlYwqd6HD5SzHnrLSBBUw9f+3CYejB5emX1ScY/OLf8T+83tLf/g5/Ccj7HuJHrOrEyfi62JCrOldfhwLObJtOEF9JCTKQdB04t89/1O/w1cDnyilFU=",
+        Authorization: "Bearer YOUR_LINE_CHANNEL_ACCESS_TOKEN",
       },
       body: JSON.stringify({
-        replyToken,
+        replyToken: replyToken,
         messages: [
           {
             type: "text",
