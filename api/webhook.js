@@ -21,6 +21,8 @@ ${userMessage}
 ・時短
 ・節約
 ・簡単
+・日本のスーパーで買える食材
+・LINEで読みやすく短めに
 
 【形式】
 主菜：
@@ -46,15 +48,16 @@ ${userMessage}
 
       const data = await aiRes.json();
 
-      // 🔥ここが最重要修正
-      if (data.output_text) {
-        replyText = data.output_text;
+      if (!aiRes.ok) {
+        replyText = `OpenAIエラー: ${data?.error?.message || "不明なエラー"}`;
       } else {
-        replyText = JSON.stringify(data); // デバッグ
+        replyText =
+          data.output_text ||
+          data.output?.find(item => item.type === "message")?.content?.find(c => c.type === "output_text")?.text ||
+          "献立の生成に失敗しました。";
       }
-
     } catch (e) {
-      replyText = "エラー: " + e.message;
+      replyText = `接続エラー: ${e.message}`;
     }
 
     await fetch("https://api.line.me/v2/bot/message/reply", {
